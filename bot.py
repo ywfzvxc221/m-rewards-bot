@@ -4,19 +4,25 @@ from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 import datetime
 
-# تحميل متغيرات البيئة من ملف .env أو من النظام مباشرة
+# تحميل المتغيرات من البيئة
 load_dotenv()
 
+# قراءة المتغيرات من البيئة
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 FAUCET_EMAIL = os.getenv("FAUCET_EMAIL")
 
+# التأكد من أن المتغيرات الأساسية موجودة
+if not BOT_TOKEN or not ADMIN_ID or not FAUCET_EMAIL:
+    raise ValueError("تأكد من ضبط متغيرات البيئة: BOT_TOKEN, ADMIN_ID, FAUCET_EMAIL")
+
+# إنشاء البوت
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# بيانات المستخدمين (يفضل استخدام قاعدة بيانات في الإنتاج)
+# بيانات المستخدمين
 users_data = {}
 
-# إنشاء لوحة القائمة الرئيسية
+# القائمة الرئيسية
 def main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
@@ -28,7 +34,7 @@ def main_menu():
     )
     return markup
 
-# بدء المحادثة
+# عند بدء المحادثة
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.from_user.id
@@ -40,12 +46,11 @@ def start(message):
         }
     bot.send_message(message.chat.id, "🎉 مرحبًا بك في بوت ربح البيتكوين!\nاختر من القائمة الرئيسية:", reply_markup=main_menu())
 
-# التعامل مع أزرار القائمة
+# التعامل مع الأزرار
 @bot.callback_query_handler(func=lambda call: True)
 def handle_query(call):
     user_id = call.from_user.id
 
-    # تأكد من وجود بيانات المستخدم
     if user_id not in users_data:
         users_data[user_id] = {
             "balance": 0.0,

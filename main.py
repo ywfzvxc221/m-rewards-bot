@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import datetime
 import json
 
+# تحميل المتغيرات من ملف .env
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
@@ -16,6 +17,7 @@ WELCOME_FILE = "bot_files/welcome_message.txt"
 CONFIG_FILE = "bot_files/config.json"
 BUTTONS_FILE = "bot_files/buttons.json"
 
+# تحميل البيانات
 def load_users_data():
     try:
         with open(DATA_FILE, "r") as f:
@@ -44,67 +46,48 @@ def load_buttons():
 users_data = load_users_data()
 config = load_config()
 
-def main_menu(user_id=None):
+# القائمة الرئيسية
+def main_menu():
     markup = InlineKeyboardMarkup(row_width=2)
     markup.add(
         InlineKeyboardButton("👤 حسابي", callback_data="account"),
         InlineKeyboardButton("🎁 المكافأة اليومية", callback_data="daily_bonus"),
         InlineKeyboardButton("🤝 دعوة الأصدقاء", callback_data="referral"),
         InlineKeyboardButton("💸 سحب الأرباح", callback_data="withdraw"),
-        InlineKeyboardButton("📢 الإعلانات", callback_data="ads"),
-        InlineKeyboardButton("📊 إحصائياتي", callback_data="my_stats")
+        InlineKeyboardButton("📢 الإعلانات", callback_data="ads")
     )
+    # أزرار إضافية
     for btn in load_buttons():
         markup.add(InlineKeyboardButton(btn["text"], url=btn["url"]))
-    if user_id == ADMIN_ID:
+    if call.from_user.id == ADMIN_ID:
         markup.add(InlineKeyboardButton("🛠 لوحة التحكم", callback_data="admin_panel"))
     return markup
 
+# أمر البدء
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = str(message.from_user.id)
-    now = datetime.datetime.now()
     if user_id not in users_data:
-        users_data[user_id] = {
-            "balance": 0.0,
-            "referrals": [],
-            "last_bonus": None,
-            "daily_bonus_count": 0,
-            "referral_earnings": 0.0,
-            "last_active": now.isoformat()
-        }
-        save_users_data()
-    else:
-        users_data[user_id]["last_active"] = now.isoformat()
+        users_data[user_id] = {"balance": 0.0, "referrals": [], "last_bonus": None}
         save_users_data()
 
     welcome_msg = open(WELCOME_FILE, "r", encoding="utf-8").read()
-    bot.send_message(message.chat.id, welcome_msg, reply_markup=main_menu(message.from_user.id))
+    bot.send_message(message.chat.id, welcome_msg, reply_markup=main_menu())
 
+# المعالجات
 @bot.callback_query_handler(func=lambda call: True)
 def handle_query(call):
     user_id = str(call.from_user.id)
-    now = datetime.datetime.now()
-
     if user_id not in users_data:
-        users_data[user_id] = {
-            "balance": 0.0,
-            "referrals": [],
-            "last_bonus": None,
-            "daily_bonus_count": 0,
-            "referral_earnings": 0.0,
-            "last_active": now.isoformat()
-        }
+        users_data[user_id] = {"balance": 0.0, "referrals": [], "last_bonus": None}
         save_users_data()
-
-    users_data[user_id]["last_active"] = now.isoformat()
-    save_users_data()
 
     if call.data == "account":
         bal = users_data[user_id]["balance"]
         bot.edit_message_text(f"💰 رصيدك الحالي: {bal:.8f} BTC", call.message.chat.id, call.message.message_id)
 
     elif call.data == "daily_bonus":
+        now = datetime.datetime.now()
         last = users_data[user_id]["last_bonus"]
         if last:
             last = datetime.datetime.fromisoformat(last)
@@ -117,7 +100,6 @@ def handle_query(call):
         bonus = config.get("daily_bonus", 0.00000050)
         users_data[user_id]["balance"] += bonus
         users_data[user_id]["last_bonus"] = now.isoformat()
-        users_data[user_id]["daily_bonus_count"] += 1
         save_users_data()
         bot.edit_message_text(f"🎉 تم إضافة {bonus} BTC إلى رصيدك.", call.message.chat.id, call.message.message_id)
 
@@ -138,18 +120,6 @@ def handle_query(call):
 
     elif call.data == "ads":
         bot.edit_message_text("📢 سيتم عرض الإعلانات هنا لاحقًا.", call.message.chat.id, call.message.message_id)
-
-    elif call.data == "my_stats":
-        data = users_data[user_id]
-        stats_msg = (
-            f"📊 إحصائياتك:\n"
-            f"💰 الرصيد: {data['balance']:.8f} BTC\n"
-            f"👥 عدد الإحالات: {len(data['referrals'])}\n"
-            f"💸 أرباح الإحالات: {data['referral_earnings']:.8f} BTC\n"
-            f"🎁 مرات المكافأة اليومية: {data['daily_bonus_count']}\n"
-            f"🕒 آخر نشاط: {data['last_active'].split('T')[0]} {data['last_active'].split('T')[1][:8]}"
-        )
-        bot.edit_message_text(stats_msg, call.message.chat.id, call.message.message_id)
 
     elif call.data == "admin_panel" and call.from_user.id == ADMIN_ID:
         markup = InlineKeyboardMarkup()
@@ -172,6 +142,7 @@ def handle_query(call):
         bot.send_message(call.message.chat.id, "🆕 أرسل النص والرابط بهذا الشكل:\n`زر جديد - https://example.com`")
         bot.register_next_step_handler(call.message, add_button)
 
+# إعدادات الأدمن
 def set_welcome(message):
     with open(WELCOME_FILE, "w", encoding="utf-8") as f:
         f.write(message.text)
@@ -198,4 +169,5 @@ def add_button(message):
     except:
         bot.send_message(message.chat.id, "❌ تأكد من الشكل: `النص - الرابط`")
 
+# بدء البوت
 bot.infinity_polling()

@@ -1,0 +1,11 @@
+elif call.data == "my_stats":
+    data = users_data[user_id]
+    stats_msg = (
+        f"📊 إحصائياتك:\n"
+        f"💰 الرصيد: {data['balance']:.8f} BTC\n"
+        f"👥 عدد الإحالات: {len(data['referrals'])}\n"
+        f"💸 أرباح الإحالات: {data['referral_earnings']:.8f} BTC\n"
+        f"🎁 مرات المكافأة اليومية: {data['daily_bonus_count']}\n"
+        f"🕒 آخر نشاط: {data['last_active'].split('T')[0]} {data['last_active'].split('T')[1][:8]}"
+    )
+    bot.edit_message_text(stats_msg, call.message.chat.id, call.message.message_id)
